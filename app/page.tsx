@@ -71,8 +71,8 @@ export default function HomePage() {
                   <Image
                     src={`${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/${memorial.photo_path}`}
                     alt={`Memorial photo of ${memorial.full_name}`}
-                    width={400}   // adjust as needed
-                    height={300}  // adjust as needed
+                    width={400}
+                    height={300}
                     className="memorial-image"
                   />
                   <div className="memorial-info">
@@ -95,7 +95,7 @@ export default function HomePage() {
         </div>
       )}
 
-      {/* No memorials today */}
+      {/* Empty state if no memorials today */}
       {!loading && memorials.length === 0 && (
         <div className="no-memorials">
           <h2 className="cta-title">Create a Lasting Memorial</h2>
@@ -131,14 +131,16 @@ export default function HomePage() {
               </p>
             </div>
           </div>
-
-          <div className="price-tag">One-time fee: $10.00 USD</div>
-          <br />
-          <a href="/create" className="cta-button">
-            Create a Memorial
-          </a>
         </div>
       )}
-    </div>
-  );
-}
+
+      {/* ✅ Always show "Create a Memorial" button */}
+            {/* ✅ Always show "Create a Memorial" section */}
+            <div className="text-center" style={{ margin: "3rem 0" }}>
+        <p className="cta-description" style={{ marginBottom: "1rem", fontSize: "1.1rem" }}>
+          Every story deserves to be remembered. Start a memorial today and keep their legacy alive.
+        </p>
+        <a href="/create" className="cta-button">
+          Create a Memorial
+        </a>
+      </div>
