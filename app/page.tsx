@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
+import Image from "next/image"; // ✅ import Next.js optimized Image
 
 type Memorial = {
   id: string;
@@ -16,7 +17,7 @@ export default function HomePage() {
   const [hydrated, setHydrated] = useState(false); // ✅ prevent SSR hydration mismatch
 
   useEffect(() => {
-    setHydrated(true); // mark client-side ready
+    setHydrated(true);
   }, []);
 
   useEffect(() => {
@@ -67,9 +68,11 @@ export default function HomePage() {
               const date = new Date(memorial.date_of_death);
               return (
                 <div className="memorial-card" key={memorial.id}>
-                  <img
+                  <Image
                     src={`${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/${memorial.photo_path}`}
                     alt={`Memorial photo of ${memorial.full_name}`}
+                    width={400}   // adjust as needed
+                    height={300}  // adjust as needed
                     className="memorial-image"
                   />
                   <div className="memorial-info">
@@ -97,9 +100,9 @@ export default function HomePage() {
         <div className="no-memorials">
           <h2 className="cta-title">Create a Lasting Memorial</h2>
           <p className="cta-description">
-            Honor your loved one's memory with a beautiful digital memorial that
-            appears every year on their anniversary. Share their story and keep
-            their memory alive for generations to come.
+            Honor your loved one&apos;s memory with a beautiful digital memorial
+            that appears every year on their anniversary. Share their story and
+            keep their memory alive for generations to come.
           </p>
 
           <div className="features">

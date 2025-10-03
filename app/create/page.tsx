@@ -71,9 +71,13 @@ export default function CreatePage() {
 
       alert('Submitted! It will appear each year on that date.');
       window.location.href = '/';
-    } catch (err: any) {
+    } catch (err: unknown) {
       setLoading(false);
-      alert('Unexpected error: ' + err.message);
+      if (err instanceof Error) {
+        alert('Unexpected error: ' + err.message);
+      } else {
+        alert('Unexpected error');
+      }
     }
   }
 
