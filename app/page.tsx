@@ -134,16 +134,15 @@ export default function HomePage() {
         </div>
       )}
 
-      {/* ✅ Always show "Create a Memorial" button */}
-            {/* ✅ Always show "Create a Memorial" section */}
-            <div className="text-center" style={{ margin: "3rem 0" }}>
-        <p className="cta-description" style={{ marginBottom: "1rem", fontSize: "1.1rem" }}>
+      <div className="cta-section">
+        <p className="cta-hook">
           Every story deserves to be remembered. Start a memorial today and keep their legacy alive.
         </p>
         <a href="/create" className="cta-button">
           Create a Memorial
         </a>
       </div>
+
     </div>
   );
 }

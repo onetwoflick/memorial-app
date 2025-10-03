@@ -366,4 +366,36 @@ body {
     color: #666;
     font-size: 0.9rem;
   }
+
+  .cta-button {
+    display: inline-block;
+    background: #3498db;
+    color: #fff;
+    padding: 1rem 2rem;
+    border-radius: 50px;
+    font-size: 1.1rem;
+    font-weight: 600;
+    text-decoration: none;
+    transition: all 0.3s ease;
+  }
+  
+  .cta-button:hover {
+    background: #2980b9;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+  }
+  .cta-section {
+    width: 100%;                /* span full width */
+    text-align: center;         /* center text and button */
+    background: rgba(0, 0, 0, 0.6); /* dark transparent background */
+    padding: 2rem 1rem;
+    margin-top: 3rem;
+  }
+  
+  .cta-hook {
+    font-size: 1.3rem;
+    font-weight: 500;
+    color: #fff;                /* white text for readability */
+    margin-bottom: 1rem;
+  }
   
