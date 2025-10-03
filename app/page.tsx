@@ -68,13 +68,14 @@ export default function HomePage() {
               const date = new Date(memorial.date_of_death);
               return (
                 <div className="memorial-card" key={memorial.id}>
-                  <Image
-                    src={`${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/${memorial.photo_path}`}
-                    alt={`Memorial photo of ${memorial.full_name}`}
-                    width={400}
-                    height={300}
-                    className="memorial-image"
-                  />
+                  <div className="memorial-image-wrapper">
+                    <Image
+                      src={`${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/${memorial.photo_path}`}
+                      alt={`Memorial photo of ${memorial.full_name}`}
+                      fill
+                      className="memorial-image"
+                    />
+                  </div>
                   <div className="memorial-info">
                     <h3 className="memorial-name">{memorial.full_name}</h3>
                     <div className="memorial-date">
@@ -89,6 +90,7 @@ export default function HomePage() {
                     </div>
                   </div>
                 </div>
+
               );
             })}
           </div>

@@ -144,22 +144,33 @@ export default function CreatePage() {
             }}
             required
           />
-          <div
-            className={`photo-preview ${!preview ? 'empty' : ''}`}
-            style={preview ? { backgroundImage: `url(${preview})` } : {}}
-          >
-            {!preview && "Click or drag a photo here"}
+          <div className="photo-preview">
+            {preview ? (
+              <img
+                src={preview}
+                alt="Preview"
+                style={{
+                  maxWidth: "100%",
+                  maxHeight: "250px",
+                  objectFit: "contain",
+                  borderRadius: "8px"
+                }}
+              />
+            ) : (
+              "Click or drag a photo here"
+            )}
           </div>
+
         </div>
 
-        <div className="form-group">
+        {/* <div className="form-group">
           <label>Tribute (Optional)</label>
           <textarea
             rows={3}
             value={form.tribute_text}
             onChange={e => setForm({ ...form, tribute_text: e.target.value })}
           />
-        </div>
+        </div> */}
 
         <button type="submit" disabled={loading} className="submit-button">
           {loading ? 'Saving...' : 'Submit Memorial'}

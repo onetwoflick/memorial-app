@@ -316,16 +316,16 @@ body {
   
   .photo-preview {
     width: 100%;
-    height: 200px;
+    min-height: 250px;    /* keeps height before upload */
     border: 2px dashed #ddd;
     border-radius: 8px;
     display: flex;
     align-items: center;
     justify-content: center;
     margin-top: 0.5rem;
-    background-size: cover;
-    background-position: center;
-  }
+    color: #666;
+    font-size: 0.9rem;
+  }  
   
   .photo-preview.empty {
     color: #666;
@@ -397,5 +397,37 @@ body {
     font-weight: 500;
     color: #fff;                /* white text for readability */
     margin-bottom: 1rem;
+  }
+  .memorials-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 2rem;
+  }
+  
+  .memorial-card {
+    background: rgba(255, 255, 255, 0.97);
+    border-radius: 15px;
+    overflow: hidden;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+    transition: transform 0.3s ease;
+    display: flex;
+    flex-direction: column;
+  }
+  
+  .memorial-card:hover {
+    transform: translateY(-5px);
+  }
+  
+  /* ✅ image wrapper fixes height */
+  .memorial-image-wrapper {
+    position: relative;
+    width: 100%;
+    height: 250px; /* fixed height for grid uniformity */
+    background: #f4f4f4; /* fallback bg */
+  }
+  
+  .memorial-image {
+    object-fit: contain; /* show full image, no crop */
+    padding: 0.5rem; /* small padding so image doesn’t stick to edges */
   }
   
