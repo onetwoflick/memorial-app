@@ -144,3 +144,6 @@ export default function HomePage() {
           Create a Memorial
         </a>
       </div>
+    </div>
+  );
+}
