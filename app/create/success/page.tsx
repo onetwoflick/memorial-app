@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
+import Link from "next/link";
 import { supabase } from "@/lib/supabaseClient";
 import Image from "next/image";
 
@@ -74,9 +75,9 @@ export default function SuccessPage() {
       </div>
 
       <div style={{ marginTop: "2rem", textAlign: "center" }}>
-        <a href="/" className="cta-button">
+        <Link href="/" className="cta-button">
           Return Home
-        </a>
+        </Link>
       </div>
     </div>
   );

@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
+import Image from "next/image";
 
 export default function DetailsPage() {
   const [sessionValid, setSessionValid] = useState(false);
@@ -60,8 +61,12 @@ export default function DetailsPage() {
 
       // Redirect to success page with ID
       window.location.href = `/create/success?id=${data.id}`;
-    } catch (err: any) {
-      alert("Error: " + err.message);
+    } catch (err: unknown) {
+      if (err instanceof Error) {
+        alert("Error: " + err.message);
+      } else {
+        alert("Unexpected error occurred");
+      }
     } finally {
       setLoading(false);
     }
@@ -128,12 +133,14 @@ export default function DetailsPage() {
           />
           {preview && (
             <div className="photo-preview">
-              <img
+              <Image
                 src={preview}
                 alt="Preview"
+                width={400}
+                height={300}
                 style={{
                   maxWidth: "100%",
-                  maxHeight: "250px",
+                  height: "auto",
                   objectFit: "contain",
                   borderRadius: "8px",
                 }}
