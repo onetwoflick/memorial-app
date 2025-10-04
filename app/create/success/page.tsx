@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { supabase } from "@/lib/supabaseClient";
@@ -14,7 +14,7 @@ type Memorial = {
   photo_path: string;
 };
 
-export default function SuccessPage() {
+function SuccessContent() {
   const params = useSearchParams();
   const id = params.get("id");
   const [memorial, setMemorial] = useState<Memorial | null>(null);
@@ -80,5 +80,13 @@ export default function SuccessPage() {
         </Link>
       </div>
     </div>
+  );
+}
+
+export default function SuccessPage() {
+  return (
+    <Suspense fallback={<p>Loading your memorial…</p>}>
+      <SuccessContent />
+    </Suspense>
   );
 }
