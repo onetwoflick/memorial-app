@@ -82,12 +82,13 @@ export default function HomePage() {
                       In loving memory
                       <br />
                       {hydrated &&
-                        date.toLocaleDateString("en-US", {
+                        new Date(memorial.date_of_death + "T00:00:00").toLocaleDateString("en-US", {
                           year: "numeric",
-                          month: "long",
+                          month: "long", 
                           day: "numeric",
                         })}
                     </div>
+
                   </div>
                 </div>
 
