@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { supabase } from "@/lib/supabaseClient";
 import Image from "next/image";
 
@@ -26,7 +27,7 @@ export default function DetailsPage() {
     setSessionId(session_id);
     fetch(`/api/checkout/verify?session_id=${session_id}`)
       .then((r) => r.json())
-      .then(({ paid, code }) => {
+      .then(({ paid, code }: { paid?: boolean; code?: string }) => {
         setSessionValid(!!paid);
         if (paid && code) setEditCode(code);
       });
@@ -83,8 +84,8 @@ export default function DetailsPage() {
         window.location.href = `/create/success?id=${data.id}`;
       }
     } catch (err: unknown) {
-      const anyErr = err as any;
-      const message = anyErr?.message || anyErr?.error_description || JSON.stringify(anyErr);
+      const errorObj = err as { message?: string; error_description?: string };
+      const message = errorObj?.message || errorObj?.error_description || "Unknown error";
       alert("Error: " + message);
     } finally {
       setLoading(false);
@@ -105,7 +106,7 @@ export default function DetailsPage() {
       {editCode && (
         <div className="edit-code-box" style={{ textAlign: "center" }}>
           <p className="description">Your edit code: <span className="edit-code">{editCode}</span></p>
-          <p className="description">Use this code any time at the <a href="/edit">Edit page</a> to resume your memorial.</p>
+          <p className="description">Use this code any time at the <Link href="/edit">Edit page</Link> to resume your memorial.</p>
         </div>
       )}
 

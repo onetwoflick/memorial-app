@@ -32,7 +32,7 @@ function SuccessContent() {
           .select("*")
           .eq("id", id)
           .maybeSingle();
-        memorialData = (data as any) ?? null;
+        memorialData = (data as Memorial | null) ?? null;
       } else if (session_id) {
         // Resolve memorial via memorial_sessions → memorial_id
         const { data: sess } = await supabase
@@ -46,7 +46,7 @@ function SuccessContent() {
             .select("*")
             .eq("id", sess.memorial_id)
             .maybeSingle();
-          memorialData = (data as any) ?? null;
+          memorialData = (data as Memorial | null) ?? null;
         }
       }
 
@@ -66,7 +66,7 @@ function SuccessContent() {
     }
 
     fetchData();
-  }, [session_id]);
+  }, [session_id, id]);
 
   return (
     <div className="create-container">
