@@ -14,7 +14,7 @@ export async function POST(req: NextRequest) {
     );
 
     if (event.type === "checkout.session.completed") {
-      const session = event.data.object as any;
+      const session = event.data.object as { id: string };
 
       // Generate a random 6-character edit code
       const code = Math.random().toString(36).substring(2, 8).toUpperCase();
@@ -27,9 +27,10 @@ export async function POST(req: NextRequest) {
     }
 
     return NextResponse.json({ received: true });
-  } catch (e: any) {
-    console.error("Webhook error:", e.message);
-    return new NextResponse(`Webhook Error: ${e.message}`, { status: 400 });
+  } catch (e: unknown) {
+    const err = e as { message?: string };
+    console.error("Webhook error:", err?.message);
+    return new NextResponse(`Webhook Error: ${err?.message ?? "unknown"}`, { status: 400 });
   }
 }
 

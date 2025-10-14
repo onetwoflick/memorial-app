@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
 
+// Keeping type for clarity; used in comments and potential future extensions
 type Memorial = {
   id: string;
   full_name: string;

@@ -31,7 +31,7 @@ export async function GET(req: NextRequest) {
       // Create a new code and save it in memorial_sessions
       const code = Math.random().toString(36).substring(2, 8).toUpperCase();
 
-      const { data, error } = await supabase
+      const { error } = await supabase
         .from("memorial_sessions")
         .insert([
           {
