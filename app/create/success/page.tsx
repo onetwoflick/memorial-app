@@ -10,82 +10,113 @@ type Memorial = {
   id: string;
   full_name: string;
   date_of_death: string;
-  tribute_text: string;
   photo_path: string;
 };
 
 function SuccessContent() {
   const params = useSearchParams();
+  const session_id = params.get("session_id");
   const id = params.get("id");
   const [memorial, setMemorial] = useState<Memorial | null>(null);
+  const [editCode, setEditCode] = useState<string | null>(null);
 
   useEffect(() => {
-    async function fetchMemorial() {
-      if (!id) return;
-      const { data, error } = await supabase
-        .from("memorials")
-        .select("*")
-        .eq("id", id)
-        .single();
+    async function fetchData() {
+      if (!session_id && !id) return;
 
-      if (!error) setMemorial(data);
+      // Get memorial if already created either by session or id
+      let memorialData: Memorial | null = null;
+      if (id) {
+        const { data } = await supabase
+          .from("memorials")
+          .select("*")
+          .eq("id", id)
+          .maybeSingle();
+        memorialData = (data as any) ?? null;
+      } else if (session_id) {
+        // Resolve memorial via memorial_sessions → memorial_id
+        const { data: sess } = await supabase
+          .from("memorial_sessions")
+          .select("memorial_id")
+          .eq("session_id", session_id)
+          .maybeSingle();
+        if (sess?.memorial_id) {
+          const { data } = await supabase
+            .from("memorials")
+            .select("*")
+            .eq("id", sess.memorial_id)
+            .maybeSingle();
+          memorialData = (data as any) ?? null;
+        }
+      }
+
+      if (memorialData) setMemorial(memorialData);
+
+
+      // Get edit code from memorial_sessions
+      if (session_id) {
+        const { data: sessionData } = await supabase
+          .from("memorial_sessions")
+          .select("code")
+          .eq("session_id", session_id)
+          .single();
+        if (sessionData) setEditCode(sessionData.code);
+      }
+
     }
-    fetchMemorial();
-  }, [id]);
 
-  if (!memorial) return <p>Loading your memorial…</p>;
-
-  const date = new Date(memorial.date_of_death);
+    fetchData();
+  }, [session_id]);
 
   return (
     <div className="create-container">
       <h1 className="create-title">Memorial Created Successfully</h1>
-      <p className="create-subtitle">
-        Here’s how your memorial will appear on its anniversary date:
-      </p>
 
-      <div className="memorial-card" style={{ marginTop: "2rem" }}>
-        <div className="memorial-image-wrapper">
-          <Image
-            src={`${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/${memorial.photo_path}`}
-            alt={`Memorial photo of ${memorial.full_name}`}
-            width={400}
-            height={300}
-            style={{ objectFit: "contain" }}
-            className="memorial-image"
-          />
+      {/* Removed extra subtitle text per request */}
+
+      {editCode && (
+        <div className="edit-code-box" style={{ textAlign: "center" }}>
+          <p className="description">Your edit code: <span className="edit-code">{editCode}</span></p>
+          <p className="description">Use this code on the <Link href="/edit">Edit page</Link> to return later.</p>
         </div>
-        <div className="memorial-info">
-          <h3 className="memorial-name">{memorial.full_name}</h3>
-          <div className="memorial-date">
-            In loving memory
-            <br />
-            {date.toLocaleDateString("en-US", {
-              year: "numeric",
-              month: "long",
-              day: "numeric",
-            })}
+      )}
+
+      {memorial && (
+        <div className="memorial-card" style={{ marginTop: "2rem", display: "flex", flexDirection: "column", alignItems: "center" }}>
+          <div style={{ width: "100%", display: "flex", justifyContent: "center", paddingTop: "1rem" }}>
+            <Image
+              src={`${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/${memorial.photo_path}`}
+              alt={memorial.full_name}
+              width={300}
+              height={300}
+              style={{ objectFit: "cover", borderRadius: "8px" }}
+            />
           </div>
-          {memorial.tribute_text && (
-            <p style={{ marginTop: "1rem", color: "#555" }}>
-              {memorial.tribute_text}
-            </p>
-          )}
+          <div className="memorial-info" style={{ textAlign: "center" }}>
+            <h3 className="memorial-name">{memorial.full_name}</h3>
+            <div className="memorial-date">
+              In loving memory
+              <br />
+              {(() => {
+                const [yy, mm, dd] = memorial.date_of_death.split("-").map(Number);
+                const localDate = new Date(yy, (mm || 1) - 1, dd || 1); // local midnight
+                return localDate.toLocaleDateString("en-US", {
+                  year: "numeric",
+                  month: "long",
+                  day: "numeric",
+                });
+              })()}
+            </div>
+          </div>
         </div>
-      </div>
-
-      <div style={{ marginTop: "2rem", textAlign: "center" }}>
-        <Link href="/" className="cta-button">
-          Return Home
-        </Link>
-      </div>
+      )}
     </div>
   );
 }
 
 export default function SuccessPage() {
   return (
-    <Suspense fallback={<p>Loading your memorial…</p>}>
+    <Suspense fallback={<p>Loading memorial…</p>}>
       <SuccessContent />
     </Suspense>
   );

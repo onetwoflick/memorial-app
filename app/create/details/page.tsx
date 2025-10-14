@@ -10,10 +10,12 @@ export default function DetailsPage() {
   const [form, setForm] = useState({
     full_name: "",
     date_of_death: "",
-    tribute_text: "",
   });
   const [file, setFile] = useState<File | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
+  const [sessionId, setSessionId] = useState<string | null>(null);
+  const [editCode, setEditCode] = useState<string | null>(null);
+  const [imageError, setImageError] = useState<string | null>(null);
 
   // ✅ Verify Stripe session
   useEffect(() => {
@@ -21,15 +23,23 @@ export default function DetailsPage() {
     const session_id = params.get("session_id");
     if (!session_id) return;
 
+    setSessionId(session_id);
     fetch(`/api/checkout/verify?session_id=${session_id}`)
       .then((r) => r.json())
-      .then(({ paid }) => setSessionValid(!!paid));
+      .then(({ paid, code }) => {
+        setSessionValid(!!paid);
+        if (paid && code) setEditCode(code);
+      });
   }, []);
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     if (!form.full_name || !form.date_of_death || !file) {
       alert("Please complete all required fields.");
+      return;
+    }
+    if (imageError) {
+      alert(imageError);
       return;
     }
     setLoading(true);
@@ -40,7 +50,7 @@ export default function DetailsPage() {
       // Upload photo
       const { error: upErr } = await supabase.storage
         .from("memorial-photos")
-        .upload(filename, file);
+        .upload(filename, file, { contentType: file.type });
 
       if (upErr) throw upErr;
 
@@ -50,23 +60,32 @@ export default function DetailsPage() {
         .insert({
           full_name: form.full_name,
           date_of_death: form.date_of_death,
-          tribute_text: form.tribute_text,
           photo_path: `memorial-photos/${filename}`,
-          status: "approved",
+          status: "draft",
         })
         .select("id")
         .single();
 
       if (dbErr) throw dbErr;
 
-      // Redirect to success page with ID
-      window.location.href = `/create/success?id=${data.id}`;
-    } catch (err: unknown) {
-      if (err instanceof Error) {
-        alert("Error: " + err.message);
-      } else {
-        alert("Unexpected error occurred");
+      // Ensure the session row links to this memorial
+      if (sessionId) {
+        await supabase
+          .from("memorial_sessions")
+          .update({ memorial_id: data.id })
+          .eq("session_id", sessionId);
       }
+
+      // Redirect to success page using session_id so the edit code shows
+      if (sessionId) {
+        window.location.href = `/create/success?session_id=${sessionId}`;
+      } else {
+        window.location.href = `/create/success?id=${data.id}`;
+      }
+    } catch (err: unknown) {
+      const anyErr = err as any;
+      const message = anyErr?.message || anyErr?.error_description || JSON.stringify(anyErr);
+      alert("Error: " + message);
     } finally {
       setLoading(false);
     }
@@ -82,6 +101,13 @@ export default function DetailsPage() {
       <p className="create-subtitle">
         Please provide your loved one’s information and upload a meaningful photo.
       </p>
+
+      {editCode && (
+        <div className="edit-code-box" style={{ textAlign: "center" }}>
+          <p className="description">Your edit code: <span className="edit-code">{editCode}</span></p>
+          <p className="description">Use this code any time at the <a href="/edit">Edit page</a> to resume your memorial.</p>
+        </div>
+      )}
 
       <form onSubmit={submit} className="memorial-form">
         <div className="form-group">
@@ -123,14 +149,38 @@ export default function DetailsPage() {
               const f = e.target.files?.[0] ?? null;
               setFile(f);
               if (f) {
+                setImageError(null);
                 const reader = new FileReader();
-                reader.onload = (ev) =>
-                  setPreview(ev.target?.result as string);
+                reader.onload = (ev) => {
+                  const dataUrl = ev.target?.result as string;
+                  setPreview(dataUrl);
+                  // Validate image dimensions (passport-like min), and max bounds
+                  const img = document.createElement('img');
+                  img.onload = () => {
+                    const w = (img as HTMLImageElement).naturalWidth;
+                    const h = (img as HTMLImageElement).naturalHeight;
+                    const minW = 300; // min passport-ish width
+                    const minH = 400; // min passport-ish height
+                    const maxW = 3000;
+                    const maxH = 3000;
+                    if (w < minW || h < minH) {
+                      setImageError(`Image too small. Minimum ${minW}x${minH}px.`);
+                    } else if (w > maxW || h > maxH) {
+                      setImageError(`Image too large. Maximum ${maxW}x${maxH}px.`);
+                    } else if (f.size > 5 * 1024 * 1024) {
+                      setImageError("Image file too big. Max 5 MB.");
+                    } else {
+                      setImageError(null);
+                    }
+                  };
+                  img.src = dataUrl;
+                };
                 reader.readAsDataURL(f);
               }
             }}
             required
           />
+          {imageError && <div className="error-message">{imageError}</div>}
           {preview && (
             <div className="photo-preview">
               <Image
@@ -145,6 +195,7 @@ export default function DetailsPage() {
                   borderRadius: "8px",
                 }}
               />
+              <div className="create-subtitle" style={{ marginTop: "0.5rem" }}>Centered caption under the image</div>
             </div>
           )}
         </div>

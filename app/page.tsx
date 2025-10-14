@@ -56,7 +56,7 @@ export default function HomePage() {
     <div>
       {/* Header */}
       <div className="header">
-        <h1>Down the Memory Lane</h1>
+        <h1 className="home-hero-title">Down the Memory Lane</h1>
         <p>Honoring and remembering those who touched our lives</p>
       </div>
 
@@ -76,7 +76,7 @@ export default function HomePage() {
                       className="memorial-image"
                     />
                   </div>
-                  <div className="memorial-info">
+                  <div className="memorial-info" style={{ textAlign: "center" }}>
                     <h3 className="memorial-name">{memorial.full_name}</h3>
                     <div className="memorial-date">
                       In loving memory
@@ -141,8 +141,11 @@ export default function HomePage() {
         <p className="cta-hook">
           Every story deserves to be remembered. Start a memorial today and keep their legacy alive.
         </p>
-        <a href="/create" className="cta-button">
+        <a href="/create" className="cta-button" style={{ marginRight: "0.5rem" }}>
           Create a Memorial
+        </a>
+        <a href="/edit" className="cta-button" style={{ background: "#2ecc71" }}>
+          I Have an Edit Code
         </a>
       </div>
 

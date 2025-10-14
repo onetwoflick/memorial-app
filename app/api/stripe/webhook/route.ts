@@ -1,37 +1,40 @@
 import { NextRequest, NextResponse } from "next/server";
 import { stripe } from "@/lib/stripe";
+import { supabase } from "@/lib/supabaseClient";
 
 export async function POST(req: NextRequest) {
-  const sig = req.headers.get("stripe-signature");
-  if (!sig) {
-    return new NextResponse("Missing Stripe signature", { status: 400 });
-  }
-
+  const sig = req.headers.get("stripe-signature")!;
   const raw = await req.text();
 
-  let event;
   try {
-    event = stripe.webhooks.constructEvent(
+    const event = stripe.webhooks.constructEvent(
       raw,
       sig,
       process.env.STRIPE_WEBHOOK_SECRET!
     );
-  } catch (err: unknown) {
-    if (err instanceof Error) {
-      return new NextResponse(`Webhook Error: ${err.message}`, { status: 400 });
+
+    if (event.type === "checkout.session.completed") {
+      const session = event.data.object as any;
+
+      // Generate a random 6-character edit code
+      const code = Math.random().toString(36).substring(2, 8).toUpperCase();
+
+      // Save session + code in Supabase
+      await supabase.from("memorial_sessions").insert({
+        session_id: session.id,
+        code,
+      });
     }
-    return new NextResponse("Webhook Error: Unknown error", { status: 400 });
-  }
 
-  if (event.type === "checkout.session.completed") {
-    // In a fuller build, you'd persist a "paid" credit here tied to session.id or email
-    // For local, we’ll just rely on verifying the session on /create
+    return NextResponse.json({ received: true });
+  } catch (e: any) {
+    console.error("Webhook error:", e.message);
+    return new NextResponse(`Webhook Error: ${e.message}`, { status: 400 });
   }
-
-  return NextResponse.json({ received: true });
 }
 
-// ✅ No `as any` needed
 export const config = {
-  api: { bodyParser: false },
+  api: {
+    bodyParser: false,
+  },
 };
