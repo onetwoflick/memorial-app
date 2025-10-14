@@ -19,6 +19,8 @@ function SuccessContent() {
   const id = params.get("id");
   const [memorial, setMemorial] = useState<Memorial | null>(null);
   const [editCode, setEditCode] = useState<string | null>(null);
+  const [memorialStatus, setMemorialStatus] = useState<string | null>(null);
+  const [finalizing, setFinalizing] = useState(false);
 
   useEffect(() => {
     async function fetchData() {
@@ -33,6 +35,7 @@ function SuccessContent() {
           .eq("id", id)
           .maybeSingle();
         memorialData = (data as Memorial | null) ?? null;
+        if (memorialData) setMemorialStatus((memorialData as any).status);
       } else if (session_id) {
         // Resolve memorial via memorial_sessions → memorial_id
         const { data: sess } = await supabase
@@ -47,6 +50,7 @@ function SuccessContent() {
             .eq("id", sess.memorial_id)
             .maybeSingle();
           memorialData = (data as Memorial | null) ?? null;
+          if (memorialData) setMemorialStatus((memorialData as any).status);
         }
       }
 
@@ -110,8 +114,59 @@ function SuccessContent() {
           </div>
         </div>
       )}
+
+      {memorial && memorialStatus === "draft" && (
+        <div style={{ marginTop: "2rem", textAlign: "center" }}>
+          <div className="price-info" style={{ backgroundColor: "#fff3cd", border: "1px solid #ffeaa7", borderRadius: "8px", padding: "1rem", marginBottom: "1rem" }}>
+            <strong>Important:</strong> Your memorial is saved but not yet live on the website. Click "Submit Final" below to make it appear.
+          </div>
+          <button
+            className="submit-button"
+            style={{ backgroundColor: "#27ae60" }}
+            onClick={finalizeSubmit}
+            disabled={finalizing}
+          >
+            {finalizing ? "Submitting..." : "Submit Final (Make Live)"}
+          </button>
+        </div>
+      )}
+
+      {memorial && memorialStatus === "approved" && (
+        <div className="price-info" style={{ backgroundColor: "#d4edda", border: "1px solid #c3e6cb", borderRadius: "8px", padding: "1rem", marginTop: "2rem", textAlign: "center" }}>
+          <strong>✅ Memorial is live!</strong> Your memorial will appear on the website on the anniversary date.
+        </div>
+      )}
     </div>
   );
+
+  async function finalizeSubmit() {
+    if (!memorial?.id || !session_id) return;
+    if (!confirm("After submitting, your memorial will be live on the website and you cannot edit without administrator help. Continue?")) return;
+    
+    setFinalizing(true);
+    try {
+      // Mark memorial as approved/final
+      const { error: memErr } = await supabase
+        .from("memorials")
+        .update({ status: "approved" })
+        .eq("id", memorial.id);
+      if (memErr) throw memErr;
+
+      // Lock the session
+      await supabase
+        .from("memorial_sessions")
+        .update({ used: true })
+        .eq("session_id", session_id);
+
+      setMemorialStatus("approved");
+      alert("✅ Memorial submitted! It will appear on the website.");
+    } catch (e: unknown) {
+      const errorObj = e as { message?: string };
+      alert(errorObj.message || "Failed to submit memorial.");
+    } finally {
+      setFinalizing(false);
+    }
+  }
 }
 
 export default function SuccessPage() {

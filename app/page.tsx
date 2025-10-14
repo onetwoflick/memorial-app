@@ -129,8 +129,16 @@ export default function HomePage() {
               <div className="feature-icon">💝</div>
               <h3>Lasting Legacy</h3>
               <p>
-                Create a permanent digital tribute that family and friends can
+                Create a digital tribute that family and friends can
                 visit year after year.
+              </p>
+            </div>
+            <div className="feature">
+              <div className="feature-icon">🔒</div>
+              <h3>Secure & Private</h3>
+              <p>
+                Your memorial is protected with secure access codes, ensuring
+                only you can make changes to your tribute.
               </p>
             </div>
           </div>

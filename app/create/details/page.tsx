@@ -17,25 +17,67 @@ export default function DetailsPage() {
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [editCode, setEditCode] = useState<string | null>(null);
   const [imageError, setImageError] = useState<string | null>(null);
+  const [memorialId, setMemorialId] = useState<string | null>(null);
+  const [finalizing, setFinalizing] = useState(false);
+  const [existingMemorial, setExistingMemorial] = useState<any>(null);
 
-  // ✅ Verify Stripe session
+  // ✅ Verify Stripe session and check for existing memorial
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const session_id = params.get("session_id");
     if (!session_id) return;
 
     setSessionId(session_id);
-    fetch(`/api/checkout/verify?session_id=${session_id}`)
-      .then((r) => r.json())
-      .then(({ paid, code }: { paid?: boolean; code?: string }) => {
-        setSessionValid(!!paid);
-        if (paid && code) setEditCode(code);
-      });
+    
+    async function checkSessionAndMemorial() {
+      // First verify payment
+      const verifyResponse = await fetch(`/api/checkout/verify?session_id=${session_id}`);
+      const { paid, code }: { paid?: boolean; code?: string } = await verifyResponse.json();
+      
+      if (!paid) return;
+      
+      setSessionValid(true);
+      if (code) setEditCode(code);
+
+      // Check if memorial already exists for this session
+      const { data: sessionData } = await supabase
+        .from("memorial_sessions")
+        .select("memorial_id, used")
+        .eq("session_id", session_id)
+        .single();
+
+      // If session is locked (used: true), redirect to success page
+      if (sessionData?.used) {
+        window.location.href = `/create/success?session_id=${session_id}`;
+        return;
+      }
+
+      if (sessionData?.memorial_id) {
+        // Load existing memorial
+        const { data: memorialData } = await supabase
+          .from("memorials")
+          .select("*")
+          .eq("id", sessionData.memorial_id)
+          .single();
+
+        if (memorialData) {
+          setExistingMemorial(memorialData);
+          setMemorialId(memorialData.id);
+          setForm({
+            full_name: memorialData.full_name,
+            date_of_death: memorialData.date_of_death,
+          });
+          setPreview(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/${memorialData.photo_path}`);
+        }
+      }
+    }
+
+    checkSessionAndMemorial();
   }, []);
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
-    if (!form.full_name || !form.date_of_death || !file) {
+    if (!form.full_name || !form.date_of_death || (!file && !existingMemorial)) {
       alert("Please complete all required fields.");
       return;
     }
@@ -46,42 +88,58 @@ export default function DetailsPage() {
     setLoading(true);
 
     try {
-      const filename = `${crypto.randomUUID()}-${file.name}`;
+      let photo_path = existingMemorial?.photo_path;
 
-      // Upload photo
-      const { error: upErr } = await supabase.storage
-        .from("memorial-photos")
-        .upload(filename, file, { contentType: file.type });
+      // Upload new photo if provided
+      if (file) {
+        const filename = `${crypto.randomUUID()}-${file.name}`;
+        const { error: upErr } = await supabase.storage
+          .from("memorial-photos")
+          .upload(filename, file, { contentType: file.type });
 
-      if (upErr) throw upErr;
-
-      // Save memorial and get new ID
-      const { data, error: dbErr } = await supabase
-        .from("memorials")
-        .insert({
-          full_name: form.full_name,
-          date_of_death: form.date_of_death,
-          photo_path: `memorial-photos/${filename}`,
-          status: "draft",
-        })
-        .select("id")
-        .single();
-
-      if (dbErr) throw dbErr;
-
-      // Ensure the session row links to this memorial
-      if (sessionId) {
-        await supabase
-          .from("memorial_sessions")
-          .update({ memorial_id: data.id })
-          .eq("session_id", sessionId);
+        if (upErr) throw upErr;
+        photo_path = `memorial-photos/${filename}`;
       }
 
-      // Redirect to success page using session_id so the edit code shows
-      if (sessionId) {
-        window.location.href = `/create/success?session_id=${sessionId}`;
+      // Update existing memorial or create new one
+      if (memorialId) {
+        // Update existing memorial
+        const { error: dbErr } = await supabase
+          .from("memorials")
+          .update({
+            full_name: form.full_name,
+            date_of_death: form.date_of_death,
+            photo_path,
+          })
+          .eq("id", memorialId);
+
+        if (dbErr) throw dbErr;
+        alert("✅ Memorial updated! Click 'Submit Final' to make it live on the website.");
       } else {
-        window.location.href = `/create/success?id=${data.id}`;
+        // Create new memorial
+        const { data, error: dbErr } = await supabase
+          .from("memorials")
+          .insert({
+            full_name: form.full_name,
+            date_of_death: form.date_of_death,
+            photo_path,
+            status: "draft",
+          })
+          .select("id")
+          .single();
+
+        if (dbErr) throw dbErr;
+
+        // Link session to memorial
+        if (sessionId) {
+          await supabase
+            .from("memorial_sessions")
+            .update({ memorial_id: data.id })
+            .eq("session_id", sessionId);
+        }
+
+        setMemorialId(data.id);
+        alert("✅ Memorial saved! Click 'Submit Final' to make it live on the website.");
       }
     } catch (err: unknown) {
       const errorObj = err as { message?: string; error_description?: string };
@@ -107,6 +165,13 @@ export default function DetailsPage() {
         <div className="edit-code-box" style={{ textAlign: "center" }}>
           <p className="description">Your edit code: <span className="edit-code">{editCode}</span></p>
           <p className="description">Use this code any time at the <Link href="/edit">Edit page</Link> to resume your memorial.</p>
+        </div>
+      )}
+
+      {existingMemorial && (
+        <div className="edit-code-box" style={{ textAlign: "center", backgroundColor: "#e8f5e8", border: "1px solid #4caf50" }}>
+          <p className="description">📝 <strong>Editing existing memorial</strong></p>
+          <p className="description">You can update the details below. Changes will be saved to your existing memorial.</p>
         </div>
       )}
 
@@ -141,7 +206,7 @@ export default function DetailsPage() {
         <div className="form-group">
           <label>Memorial Photo</label>
           <div className="description">
-            Choose a meaningful photo (JPG/PNG)
+            {existingMemorial ? "Choose a new photo to replace the current one (optional)" : "Choose a meaningful photo (JPG/PNG)"}
           </div>
           <input
             type="file"
@@ -179,7 +244,7 @@ export default function DetailsPage() {
                 reader.readAsDataURL(f);
               }
             }}
-            required
+            required={!existingMemorial}
           />
           {imageError && <div className="error-message">{imageError}</div>}
           {preview && (
@@ -202,13 +267,74 @@ export default function DetailsPage() {
         </div>
 
         <button type="submit" disabled={loading} className="submit-button">
-          {loading ? "Saving..." : "Submit Memorial"}
+          {loading ? "Saving..." : (existingMemorial ? "Update Memorial" : "Save Memorial")}
         </button>
+
+        {memorialId && (
+          <button
+            type="button"
+            className="submit-button"
+            style={{ marginTop: "0.5rem", backgroundColor: "#27ae60" }}
+            onClick={finalizeSubmit}
+            disabled={finalizing}
+          >
+            {finalizing ? "Submitting..." : "Submit Final (Make Live)"}
+          </button>
+        )}
       </form>
 
       <div className="price-info">
         Your memorial will be displayed every year on the anniversary date.
       </div>
+
+      {memorialId && (
+        <div className="price-info" style={{ backgroundColor: "#fff3cd", border: "1px solid #ffeaa7", borderRadius: "8px", padding: "1rem", marginTop: "1rem" }}>
+          <strong>Important:</strong> Your memorial is saved but not yet live. Click "Submit Final" above to make it appear on the website.
+        </div>
+      )}
     </div>
   );
+
+  async function finalizeSubmit() {
+    if (!memorialId || !sessionId) return;
+    
+    // Double-check that session is not already locked
+    const { data: sessionCheck } = await supabase
+      .from("memorial_sessions")
+      .select("used")
+      .eq("session_id", sessionId)
+      .single();
+    
+    if (sessionCheck?.used) {
+      alert("This memorial has already been submitted and is locked.");
+      window.location.href = `/create/success?session_id=${sessionId}`;
+      return;
+    }
+    
+    if (!confirm("After submitting, your memorial will be live on the website and you cannot edit without administrator help. Continue?")) return;
+    
+    setFinalizing(true);
+    try {
+      // Mark memorial as approved/final
+      const { error: memErr } = await supabase
+        .from("memorials")
+        .update({ status: "approved" })
+        .eq("id", memorialId);
+      if (memErr) throw memErr;
+
+      // Lock the session
+      await supabase
+        .from("memorial_sessions")
+        .update({ used: true })
+        .eq("session_id", sessionId);
+
+      alert("✅ Memorial submitted! It will appear on the website.");
+      window.location.href = `/create/success?session_id=${sessionId}`;
+    } catch (e: unknown) {
+      const errorObj = e as { message?: string };
+      alert(errorObj.message || "Failed to submit memorial.");
+    } finally {
+      setFinalizing(false);
+    }
+  }
 }

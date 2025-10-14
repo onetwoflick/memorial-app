@@ -3,8 +3,9 @@ import './globals.css'; // optional, if you have global styles
 import Link from 'next/link';
 
 export const metadata = {
-  title: 'Memorials',
+  title: 'The Parish of St John Henry Newman',
   description: 'A place to remember loved ones',
+  viewport: 'width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no',
 };
 
 export default function RootLayout({

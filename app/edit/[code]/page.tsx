@@ -129,6 +129,19 @@ export default function EditPage() {
   }
 
   async function finalizeSubmit() {
+    // Double-check that session is not already locked
+    const { data: sessionCheck } = await supabase
+      .from("memorial_sessions")
+      .select("used")
+      .eq("code", code)
+      .single();
+    
+    if (sessionCheck?.used) {
+      alert("This memorial has already been submitted and is locked.");
+      setLocked(true);
+      return;
+    }
+
     // Always save latest changes (create or update) first
     try {
       let photo_path = existingPhoto;
