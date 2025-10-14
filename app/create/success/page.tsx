@@ -21,10 +21,6 @@ function SuccessContent() {
   const [memorial, setMemorial] = useState<Memorial | null>(null);
   const [editCode, setEditCode] = useState<string | null>(null);
   const [memorialStatus, setMemorialStatus] = useState<string | null>(null);
-  const [finalizing, setFinalizing] = useState(false);
-  const [successMessage, setSuccessMessage] = useState<string | null>(null);
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [showConfirmDialog, setShowConfirmDialog] = useState(false);
 
   useEffect(() => {
     async function fetchData() {
@@ -120,107 +116,7 @@ function SuccessContent() {
         </div>
       )}
 
-      {memorial && memorialStatus === "draft" && (
-        <div style={{ marginTop: "2rem", textAlign: "center" }}>
-          <div className="price-info" style={{ backgroundColor: "#fff3cd", border: "1px solid #ffeaa7", borderRadius: "8px", padding: "1rem", marginBottom: "1rem" }}>
-            <strong>Important:</strong> Your memorial is saved but not yet live on the website. Click &quot;Submit Final&quot; below to make it appear.
-          </div>
-          <button
-            className="submit-button"
-            style={{ backgroundColor: "#27ae60" }}
-            onClick={finalizeSubmit}
-            disabled={finalizing}
-          >
-            {finalizing ? "Submitting..." : "Submit Final (Make Live)"}
-          </button>
-          
-          {successMessage && (
-            <div className="success-message" style={{ 
-              backgroundColor: "#d4edda", 
-              border: "1px solid #c3e6cb", 
-              color: "#155724", 
-              padding: "1rem", 
-              borderRadius: "8px", 
-              marginTop: "1rem",
-              textAlign: "center"
-            }}>
-              {successMessage}
-            </div>
-          )}
 
-          {errorMessage && (
-            <div className="error-message" style={{ 
-              backgroundColor: "#f8d7da", 
-              border: "1px solid #f5c6cb", 
-              color: "#721c24", 
-              padding: "1rem", 
-              borderRadius: "8px", 
-              marginTop: "1rem",
-              textAlign: "center"
-            }}>
-              {errorMessage}
-            </div>
-          )}
-        </div>
-      )}
-
-      {showConfirmDialog && (
-        <div className="confirmation-dialog" style={{
-          position: "fixed",
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          backgroundColor: "rgba(0, 0, 0, 0.5)",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          zIndex: 1000
-        }}>
-          <div style={{
-            backgroundColor: "white",
-            padding: "2rem",
-            borderRadius: "12px",
-            maxWidth: "400px",
-            width: "90%",
-            textAlign: "center",
-            boxShadow: "0 10px 25px rgba(0, 0, 0, 0.2)"
-          }}>
-            <h3 style={{ marginTop: 0, color: "#2c3e50" }}>Confirm Final Submission</h3>
-            <p style={{ color: "#666", marginBottom: "2rem" }}>
-              After submitting, your memorial will be live on the website and you cannot edit without administrator help. Continue?
-            </p>
-            <div style={{ display: "flex", gap: "1rem", justifyContent: "center" }}>
-              <button
-                onClick={() => setShowConfirmDialog(false)}
-                style={{
-                  padding: "0.75rem 1.5rem",
-                  border: "1px solid #ddd",
-                  borderRadius: "6px",
-                  backgroundColor: "white",
-                  color: "#666",
-                  cursor: "pointer"
-                }}
-              >
-                Cancel
-              </button>
-              <button
-                onClick={confirmFinalize}
-                style={{
-                  padding: "0.75rem 1.5rem",
-                  border: "none",
-                  borderRadius: "6px",
-                  backgroundColor: "#27ae60",
-                  color: "white",
-                  cursor: "pointer"
-                }}
-              >
-                Submit Final
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
       {memorial && memorialStatus === "approved" && (
         <div className="price-info" style={{ backgroundColor: "#d4edda", border: "1px solid #c3e6cb", borderRadius: "8px", padding: "1rem", marginTop: "2rem", textAlign: "center" }}>
@@ -230,86 +126,6 @@ function SuccessContent() {
     </div>
   );
 
-  async function finalizeSubmit() {
-    setSuccessMessage(null);
-    setErrorMessage(null);
-    
-    if (!memorial?.id) {
-      setErrorMessage("Error: Memorial ID not found. Please try refreshing the page.");
-      return;
-    }
-    
-    // Try to find session_id if not available
-    let resolvedSessionId = session_id;
-    if (!resolvedSessionId) {
-      const { data: sessionData } = await supabase
-        .from("memorial_sessions")
-        .select("session_id")
-        .eq("memorial_id", memorial.id)
-        .maybeSingle();
-      if (sessionData?.session_id) {
-        resolvedSessionId = sessionData.session_id;
-      }
-    }
-    
-    if (!resolvedSessionId) {
-      setErrorMessage("Error: Session ID not found. Please try refreshing the page.");
-      return;
-    }
-    
-    setShowConfirmDialog(true);
-  }
-
-  async function confirmFinalize() {
-    setShowConfirmDialog(false);
-    setFinalizing(true);
-    try {
-      if (!memorial?.id) {
-        setErrorMessage("Error: Memorial ID not found. Please try refreshing the page.");
-        return;
-      }
-
-      // Try to find session_id if not available
-      let resolvedSessionId = session_id;
-      if (!resolvedSessionId) {
-        const { data: sessionData } = await supabase
-          .from("memorial_sessions")
-          .select("session_id")
-          .eq("memorial_id", memorial.id)
-          .maybeSingle();
-        if (sessionData?.session_id) {
-          resolvedSessionId = sessionData.session_id;
-        }
-      }
-
-      if (!resolvedSessionId) {
-        setErrorMessage("Error: Session ID not found. Please try refreshing the page.");
-        return;
-      }
-
-      // Mark memorial as approved/final
-      const { error: memErr } = await supabase
-        .from("memorials")
-        .update({ status: "approved" })
-        .eq("id", memorial.id);
-      if (memErr) throw memErr;
-
-      // Lock the session
-      const { error: sessionErr } = await supabase
-        .from("memorial_sessions")
-        .update({ used: true })
-        .eq("session_id", resolvedSessionId);
-      if (sessionErr) throw sessionErr;
-
-      setMemorialStatus("approved");
-      setSuccessMessage("✅ Memorial submitted! It will appear on the website.");
-    } catch (e: unknown) {
-      const errorObj = e as { message?: string };
-      setErrorMessage("Error: " + (errorObj.message || "Failed to submit memorial."));
-    } finally {
-      setFinalizing(false);
-    }
-  }
 }
 
 export default function SuccessPage() {
