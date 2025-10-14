@@ -95,10 +95,10 @@ export default function EditPage() {
       }
 
       // Update memorial
-      const upsertPayload: Record<string, any> = {
+      const upsertPayload: { id?: string; full_name: string; date_of_death: string; photo_path: string | null } = {
         full_name: form.full_name,
         date_of_death: form.date_of_death,
-        photo_path,
+        photo_path: photo_path ?? null,
       };
       if (memorialId) upsertPayload.id = memorialId; // include id only if exists
 
@@ -119,8 +119,8 @@ export default function EditPage() {
       alert("✅ Memorial saved successfully!");
       router.push(`/create/success?id=${data.id}`);
     } catch (err: unknown) {
-      const anyErr = err as any;
-      const message = anyErr?.message || anyErr?.error_description || JSON.stringify(anyErr);
+      const errorObj = err as { message?: string; error_description?: string };
+      const message = errorObj?.message || errorObj?.error_description || "Unknown error";
       alert(`Error: ${message}`);
     } finally {
       setLoading(false);
@@ -139,10 +139,10 @@ export default function EditPage() {
         if (uploadErr) throw uploadErr;
         photo_path = `memorial-photos/${filename}`;
       }
-      const payload: Record<string, any> = {
+      const payload: { id?: string; full_name: string; date_of_death: string; photo_path: string | null } = {
         full_name: form.full_name,
         date_of_death: form.date_of_death,
-        photo_path,
+        photo_path: photo_path ?? null,
       };
       if (memorialId) payload.id = memorialId;
       const { data, error: dbErr } = await supabase
@@ -158,8 +158,9 @@ export default function EditPage() {
           .eq("code", code);
         setMemorialId(data.id);
       }
-    } catch (e: any) {
-      alert(e.message || "Failed to save changes before final submit.");
+    } catch (e: unknown) {
+      const errorObj = e as { message?: string };
+      alert(errorObj.message || "Failed to save changes before final submit.");
       return;
     }
 

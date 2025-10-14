@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
+import Link from "next/link";
 import Image from "next/image"; // ✅ import Next.js optimized Image
 
 type Memorial = {
@@ -65,7 +66,6 @@ export default function HomePage() {
         <div className="memorials-section">
           <div className="memorials-grid">
             {memorials.map((memorial) => {
-              const date = new Date(memorial.date_of_death);
               return (
                 <div className="memorial-card" key={memorial.id}>
                   <div className="memorial-image-wrapper">
@@ -144,9 +144,9 @@ export default function HomePage() {
         <a href="/create" className="cta-button" style={{ marginRight: "0.5rem" }}>
           Create a Memorial
         </a>
-        <a href="/edit" className="cta-button" style={{ background: "#2ecc71" }}>
+        <Link href="/edit" className="cta-button" style={{ background: "#2ecc71" }}>
           I Have an Edit Code
-        </a>
+        </Link>
       </div>
 
     </div>
