@@ -20,6 +20,10 @@ export default function DetailsPage() {
   const [memorialId, setMemorialId] = useState<string | null>(null);
   const [finalizing, setFinalizing] = useState(false);
   const [existingMemorial, setExistingMemorial] = useState<{id: string; full_name: string; date_of_death: string; photo_path: string} | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [showConfirmDialog, setShowConfirmDialog] = useState(false);
+  const [showSuccessDialog, setShowSuccessDialog] = useState(false);
 
   // ✅ Verify Stripe session and check for existing memorial
   useEffect(() => {
@@ -77,12 +81,15 @@ export default function DetailsPage() {
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
+    setSuccessMessage(null);
+    setErrorMessage(null);
+    
     if (!form.full_name || !form.date_of_death || (!file && !existingMemorial)) {
-      alert("Please complete all required fields.");
+      setErrorMessage("Please complete all required fields.");
       return;
     }
     if (imageError) {
-      alert(imageError);
+      setErrorMessage(imageError);
       return;
     }
     setLoading(true);
@@ -114,7 +121,7 @@ export default function DetailsPage() {
           .eq("id", memorialId);
 
         if (dbErr) throw dbErr;
-        alert("✅ Memorial updated! Click 'Submit Final' to make it live on the website.");
+        setShowSuccessDialog(true);
       } else {
         // Create new memorial
         const { data, error: dbErr } = await supabase
@@ -139,12 +146,12 @@ export default function DetailsPage() {
         }
 
         setMemorialId(data.id);
-        alert("✅ Memorial saved! Click 'Submit Final' to make it live on the website.");
+        setShowSuccessDialog(true);
       }
     } catch (err: unknown) {
       const errorObj = err as { message?: string; error_description?: string };
       const message = errorObj?.message || errorObj?.error_description || "Unknown error";
-      alert("Error: " + message);
+      setErrorMessage("Error: " + message);
     } finally {
       setLoading(false);
     }
@@ -261,7 +268,6 @@ export default function DetailsPage() {
                   borderRadius: "8px",
                 }}
               />
-              <div className="create-subtitle" style={{ marginTop: "0.5rem" }}>Centered caption under the image</div>
             </div>
           )}
         </div>
@@ -282,6 +288,140 @@ export default function DetailsPage() {
           </button>
         )}
       </form>
+
+      {successMessage && (
+        <div className="success-message" style={{ 
+          backgroundColor: "#d4edda", 
+          border: "1px solid #c3e6cb", 
+          color: "#155724", 
+          padding: "1rem", 
+          borderRadius: "8px", 
+          marginTop: "1rem",
+          textAlign: "center"
+        }}>
+          {successMessage}
+        </div>
+      )}
+
+      {errorMessage && (
+        <div className="error-message" style={{ 
+          backgroundColor: "#f8d7da", 
+          border: "1px solid #f5c6cb", 
+          color: "#721c24", 
+          padding: "1rem", 
+          borderRadius: "8px", 
+          marginTop: "1rem",
+          textAlign: "center"
+        }}>
+          {errorMessage}
+        </div>
+      )}
+
+      {showConfirmDialog && (
+        <div className="confirmation-dialog" style={{
+          position: "fixed",
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: "rgba(0, 0, 0, 0.5)",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          zIndex: 1000
+        }}>
+          <div style={{
+            backgroundColor: "white",
+            padding: "2rem",
+            borderRadius: "12px",
+            maxWidth: "400px",
+            width: "90%",
+            textAlign: "center",
+            boxShadow: "0 10px 25px rgba(0, 0, 0, 0.2)"
+          }}>
+            <h3 style={{ marginTop: 0, color: "#2c3e50" }}>Confirm Final Submission</h3>
+            <p style={{ color: "#666", marginBottom: "2rem" }}>
+              After submitting, your memorial will be live on the website and you cannot edit without administrator help. Continue?
+            </p>
+            <div style={{ display: "flex", gap: "1rem", justifyContent: "center" }}>
+              <button
+                onClick={() => setShowConfirmDialog(false)}
+                style={{
+                  padding: "0.75rem 1.5rem",
+                  border: "1px solid #ddd",
+                  borderRadius: "6px",
+                  backgroundColor: "white",
+                  color: "#666",
+                  cursor: "pointer"
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmFinalize}
+                style={{
+                  padding: "0.75rem 1.5rem",
+                  border: "none",
+                  borderRadius: "6px",
+                  backgroundColor: "#27ae60",
+                  color: "white",
+                  cursor: "pointer"
+                }}
+              >
+                Submit Final
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showSuccessDialog && (
+        <div className="success-dialog" style={{
+          position: "fixed",
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: "rgba(0, 0, 0, 0.5)",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          zIndex: 1000
+        }}>
+          <div style={{
+            backgroundColor: "white",
+            padding: "2rem",
+            borderRadius: "12px",
+            maxWidth: "400px",
+            width: "90%",
+            textAlign: "center",
+            boxShadow: "0 10px 25px rgba(0, 0, 0, 0.2)"
+          }}>
+            <div style={{ fontSize: "2rem", marginBottom: "1rem" }}>✅</div>
+            <h3 style={{ marginTop: 0, color: "#2c3e50" }}>Memorial Saved Successfully!</h3>
+            <p style={{ color: "#666", marginBottom: "2rem" }}>
+              {existingMemorial 
+                ? "Your memorial has been updated! Click 'Submit Final' to make it live on the website."
+                : "Your memorial has been saved! Click 'Submit Final' to make it live on the website."
+              }
+            </p>
+            <button
+              onClick={() => setShowSuccessDialog(false)}
+              style={{
+                padding: "0.75rem 2rem",
+                border: "none",
+                borderRadius: "6px",
+                backgroundColor: "#27ae60",
+                color: "white",
+                cursor: "pointer",
+                fontSize: "1rem"
+              }}
+            >
+              Continue
+            </button>
+          </div>
+        </div>
+      )}
 
       <div className="price-info">
         Your memorial will be displayed every year on the anniversary date.
@@ -306,13 +446,18 @@ export default function DetailsPage() {
       .single();
     
     if (sessionCheck?.used) {
-      alert("This memorial has already been submitted and is locked.");
-      window.location.href = `/create/success?session_id=${sessionId}`;
+      setErrorMessage("This memorial has already been submitted and is locked.");
+      setTimeout(() => {
+        window.location.href = `/create/success?session_id=${sessionId}`;
+      }, 2000);
       return;
     }
     
-    if (!confirm("After submitting, your memorial will be live on the website and you cannot edit without administrator help. Continue?")) return;
-    
+    setShowConfirmDialog(true);
+  }
+
+  async function confirmFinalize() {
+    setShowConfirmDialog(false);
     setFinalizing(true);
     try {
       // Mark memorial as approved/final
@@ -328,11 +473,13 @@ export default function DetailsPage() {
         .update({ used: true })
         .eq("session_id", sessionId);
 
-      alert("✅ Memorial submitted! It will appear on the website.");
-      window.location.href = `/create/success?session_id=${sessionId}`;
+      setSuccessMessage("✅ Memorial submitted! It will appear on the website.");
+      setTimeout(() => {
+        window.location.href = `/create/success?session_id=${sessionId}`;
+      }, 2000);
     } catch (e: unknown) {
       const errorObj = e as { message?: string };
-      alert(errorObj.message || "Failed to submit memorial.");
+      setErrorMessage(errorObj.message || "Failed to submit memorial.");
     } finally {
       setFinalizing(false);
     }

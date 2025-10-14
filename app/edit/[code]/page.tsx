@@ -21,6 +21,10 @@ export default function EditPage() {
   const [loading, setLoading] = useState(false);
   const [locked, setLocked] = useState(false);
   const [imageError, setImageError] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [showConfirmDialog, setShowConfirmDialog] = useState(false);
+  const [showSuccessDialog, setShowSuccessDialog] = useState(false);
 
   // 🔹 Load existing data
   useEffect(() => {
@@ -35,8 +39,10 @@ export default function EditPage() {
         .single();
 
       if (sessionErr || !session) {
-        alert("Invalid or expired edit link.");
-        router.push("/");
+        setErrorMessage("Invalid or expired edit link.");
+        setTimeout(() => {
+          router.push("/");
+        }, 2000);
         return;
       }
 
@@ -69,8 +75,11 @@ export default function EditPage() {
   // 🔹 Handle form submit
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    setSuccessMessage(null);
+    setErrorMessage(null);
+    
     if (locked) {
-      alert("This memorial has been submitted. Please contact an administrator for further changes.");
+      setErrorMessage("This memorial has been submitted. Please contact an administrator for further changes.");
       return;
     }
     setLoading(true);
@@ -110,12 +119,14 @@ export default function EditPage() {
         .update({ memorial_id: data.id })
         .eq("code", code);
 
-      alert("✅ Memorial saved successfully!");
-      router.push(`/create/success?id=${data.id}`);
+      setShowSuccessDialog(true);
+      setTimeout(() => {
+        router.push(`/create/success?id=${data.id}`);
+      }, 3000);
     } catch (err: unknown) {
       const errorObj = err as { message?: string; error_description?: string };
       const message = errorObj?.message || errorObj?.error_description || "Unknown error";
-      alert(`Error: ${message}`);
+      setErrorMessage(`Error: ${message}`);
     } finally {
       setLoading(false);
     }
@@ -130,7 +141,7 @@ export default function EditPage() {
       .single();
     
     if (sessionCheck?.used) {
-      alert("This memorial has already been submitted and is locked.");
+      setErrorMessage("This memorial has already been submitted and is locked.");
       setLocked(true);
       return;
     }
@@ -167,18 +178,22 @@ export default function EditPage() {
       }
     } catch (e: unknown) {
       const errorObj = e as { message?: string };
-      alert(errorObj.message || "Failed to save changes before final submit.");
+      setErrorMessage(errorObj.message || "Failed to save changes before final submit.");
       return;
     }
 
-    if (!confirm("After submitting, you cannot edit without administrator help. Continue?")) return;
+    setShowConfirmDialog(true);
+  }
+
+  async function confirmFinalize() {
+    setShowConfirmDialog(false);
     // Mark memorial as approved/final and lock the session
     const { error: memErr } = await supabase
       .from("memorials")
       .update({ status: "approved" })
       .eq("id", memorialId);
     if (memErr) {
-      alert(memErr.message);
+      setErrorMessage(memErr.message);
       return;
     }
     await supabase
@@ -186,7 +201,7 @@ export default function EditPage() {
       .update({ used: true })
       .eq("code", code);
     setLocked(true);
-    alert("Submitted. Further edits require administrator assistance.");
+    setSuccessMessage("Submitted. Further edits require administrator assistance.");
   }
 
   // 🔹 Render
@@ -194,7 +209,7 @@ export default function EditPage() {
     <div className="create-container">
       <h1 className="create-title">Edit Memorial</h1>
       <p className="create-subtitle">
-        Update your loved one’s information and photo below.
+        Update your loved one&apos;s information and photo below.
       </p>
 
       <form onSubmit={handleSubmit} className="memorial-form">
@@ -316,6 +331,137 @@ export default function EditPage() {
           {locked ? "Submitted (Locked)" : "Submit Final (Lock Edits)"}
         </button>
       </form>
+
+      {successMessage && (
+        <div className="success-message" style={{ 
+          backgroundColor: "#d4edda", 
+          border: "1px solid #c3e6cb", 
+          color: "#155724", 
+          padding: "1rem", 
+          borderRadius: "8px", 
+          marginTop: "1rem",
+          textAlign: "center"
+        }}>
+          {successMessage}
+        </div>
+      )}
+
+      {errorMessage && (
+        <div className="error-message" style={{ 
+          backgroundColor: "#f8d7da", 
+          border: "1px solid #f5c6cb", 
+          color: "#721c24", 
+          padding: "1rem", 
+          borderRadius: "8px", 
+          marginTop: "1rem",
+          textAlign: "center"
+        }}>
+          {errorMessage}
+        </div>
+      )}
+
+      {showConfirmDialog && (
+        <div className="confirmation-dialog" style={{
+          position: "fixed",
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: "rgba(0, 0, 0, 0.5)",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          zIndex: 1000
+        }}>
+          <div style={{
+            backgroundColor: "white",
+            padding: "2rem",
+            borderRadius: "12px",
+            maxWidth: "400px",
+            width: "90%",
+            textAlign: "center",
+            boxShadow: "0 10px 25px rgba(0, 0, 0, 0.2)"
+          }}>
+            <h3 style={{ marginTop: 0, color: "#2c3e50" }}>Confirm Final Submission</h3>
+            <p style={{ color: "#666", marginBottom: "2rem" }}>
+              After submitting, you cannot edit without administrator help. Continue?
+            </p>
+            <div style={{ display: "flex", gap: "1rem", justifyContent: "center" }}>
+              <button
+                onClick={() => setShowConfirmDialog(false)}
+                style={{
+                  padding: "0.75rem 1.5rem",
+                  border: "1px solid #ddd",
+                  borderRadius: "6px",
+                  backgroundColor: "white",
+                  color: "#666",
+                  cursor: "pointer"
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmFinalize}
+                style={{
+                  padding: "0.75rem 1.5rem",
+                  border: "none",
+                  borderRadius: "6px",
+                  backgroundColor: "#27ae60",
+                  color: "white",
+                  cursor: "pointer"
+                }}
+              >
+                Submit Final
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showSuccessDialog && (
+        <div className="success-dialog" style={{
+          position: "fixed",
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: "rgba(0, 0, 0, 0.5)",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          zIndex: 1000
+        }}>
+          <div style={{
+            backgroundColor: "white",
+            padding: "2rem",
+            borderRadius: "12px",
+            maxWidth: "400px",
+            width: "90%",
+            textAlign: "center",
+            boxShadow: "0 10px 25px rgba(0, 0, 0, 0.2)"
+          }}>
+            <div style={{ fontSize: "3rem", marginBottom: "1rem" }}>✅</div>
+            <h3 style={{ marginTop: 0, color: "#2c3e50" }}>Memorial Saved Successfully!</h3>
+            <p style={{ color: "#666", marginBottom: "2rem" }}>
+              Your memorial has been saved successfully! You will be redirected to the success page shortly.
+            </p>
+            <button
+              onClick={() => setShowSuccessDialog(false)}
+              style={{
+                padding: "0.75rem 2rem",
+                border: "none",
+                borderRadius: "6px",
+                backgroundColor: "#27ae60",
+                color: "white",
+                cursor: "pointer",
+                fontSize: "1rem"
+              }}
+            >
+              Continue
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

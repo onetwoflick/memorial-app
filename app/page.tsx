@@ -34,7 +34,6 @@ export default function HomePage() {
           return;
         }
 
-        console.log("Fetched from Supabase:", data);
 
         // ✅ safer: compare raw string "MM-DD"
         const todayStr = new Date().toISOString().slice(5, 10); // "MM-DD"
