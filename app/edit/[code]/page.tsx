@@ -4,13 +4,6 @@ import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
 
-// Keeping type for clarity; used in comments and potential future extensions
-type Memorial = {
-  id: string;
-  full_name: string;
-  date_of_death: string;
-  photo_path: string;
-};
 
 export default function EditPage() {
   const params = useParams();

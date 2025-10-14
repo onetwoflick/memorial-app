@@ -19,7 +19,7 @@ export default function DetailsPage() {
   const [imageError, setImageError] = useState<string | null>(null);
   const [memorialId, setMemorialId] = useState<string | null>(null);
   const [finalizing, setFinalizing] = useState(false);
-  const [existingMemorial, setExistingMemorial] = useState<any>(null);
+  const [existingMemorial, setExistingMemorial] = useState<{id: string; full_name: string; date_of_death: string; photo_path: string} | null>(null);
 
   // ✅ Verify Stripe session and check for existing memorial
   useEffect(() => {
@@ -289,7 +289,7 @@ export default function DetailsPage() {
 
       {memorialId && (
         <div className="price-info" style={{ backgroundColor: "#fff3cd", border: "1px solid #ffeaa7", borderRadius: "8px", padding: "1rem", marginTop: "1rem" }}>
-          <strong>Important:</strong> Your memorial is saved but not yet live. Click "Submit Final" above to make it appear on the website.
+          <strong>Important:</strong> Your memorial is saved but not yet live. Click &quot;Submit Final&quot; above to make it appear on the website.
         </div>
       )}
     </div>

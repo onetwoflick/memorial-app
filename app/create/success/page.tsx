@@ -11,6 +11,7 @@ type Memorial = {
   full_name: string;
   date_of_death: string;
   photo_path: string;
+  status?: string;
 };
 
 function SuccessContent() {
@@ -35,7 +36,7 @@ function SuccessContent() {
           .eq("id", id)
           .maybeSingle();
         memorialData = (data as Memorial | null) ?? null;
-        if (memorialData) setMemorialStatus((memorialData as any).status);
+        if (memorialData) setMemorialStatus(memorialData.status || null);
       } else if (session_id) {
         // Resolve memorial via memorial_sessions → memorial_id
         const { data: sess } = await supabase
@@ -50,7 +51,7 @@ function SuccessContent() {
             .eq("id", sess.memorial_id)
             .maybeSingle();
           memorialData = (data as Memorial | null) ?? null;
-          if (memorialData) setMemorialStatus((memorialData as any).status);
+          if (memorialData) setMemorialStatus(memorialData.status || null);
         }
       }
 
@@ -118,7 +119,7 @@ function SuccessContent() {
       {memorial && memorialStatus === "draft" && (
         <div style={{ marginTop: "2rem", textAlign: "center" }}>
           <div className="price-info" style={{ backgroundColor: "#fff3cd", border: "1px solid #ffeaa7", borderRadius: "8px", padding: "1rem", marginBottom: "1rem" }}>
-            <strong>Important:</strong> Your memorial is saved but not yet live on the website. Click "Submit Final" below to make it appear.
+            <strong>Important:</strong> Your memorial is saved but not yet live on the website. Click &quot;Submit Final&quot; below to make it appear.
           </div>
           <button
             className="submit-button"

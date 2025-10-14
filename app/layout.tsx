@@ -5,7 +5,13 @@ import Link from 'next/link';
 export const metadata = {
   title: 'The Parish of St John Henry Newman',
   description: 'A place to remember loved ones',
-  viewport: 'width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no',
+};
+
+export const viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
 };
 
 export default function RootLayout({
