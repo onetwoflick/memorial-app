@@ -2,465 +2,264 @@
 
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
+import Image from "next/image";
 import { supabase } from "@/lib/supabaseClient";
-
+import ImageCropper from "@/components/ImageCropper";
+import getCroppedImg from "@/lib/cropImage";
+import imageCompression from "browser-image-compression";
 
 export default function EditPage() {
   const params = useParams();
-  const code = params.code as string; // ✅ correct for App Router
+  const code = params.code as string;
   const router = useRouter();
 
   const [form, setForm] = useState({
     full_name: "",
     date_of_death: "",
+    date_of_birth: "",
   });
-  const [file, setFile] = useState<File | null>(null);
-  const [preview, setPreview] = useState<string | null>(null);
-  const [existingPhoto, setExistingPhoto] = useState<string | null>(null);
+  
   const [memorialId, setMemorialId] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [locked, setLocked] = useState(false);
-  const [imageError, setImageError] = useState<string | null>(null);
-  const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [existingPhoto, setExistingPhoto] = useState<string | null>(null);
+  
+  const [rawImageSrc, setRawImageSrc] = useState<string | null>(null);
+  const [croppedFile, setCroppedFile] = useState<File | null>(null);
+  const [preview, setPreview] = useState<string | null>(null);
+  const [isCropping, setIsCropping] = useState(false);
+  
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [showConfirmDialog, setShowConfirmDialog] = useState(false);
-  const [showSuccessDialog, setShowSuccessDialog] = useState(false);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
-  // 🔹 Load existing data
   useEffect(() => {
-    async function loadSession() {
+    async function loadMemorial() {
       if (!code) return;
 
-      // Get session by code
-      const { data: session, error: sessionErr } = await supabase
-        .from("memorial_sessions")
-        .select("memorial_id, used")
-        .eq("code", code)
+      const { data: memorial, error } = await supabase
+        .from("memorials")
+        .select("*")
+        .eq("edit_code", code)
         .single();
 
-      if (sessionErr || !session) {
+      if (error || !memorial) {
         setErrorMessage("Invalid or expired edit link.");
+        setLoading(false);
         setTimeout(() => {
           router.push("/");
         }, 2000);
         return;
       }
 
-      if (session.used) {
-        setLocked(true);
-      }
-
-      // If a memorial already exists, load it; otherwise stay with blank form
-      if (session.memorial_id) {
-        const { data: memorial, error: memorialErr } = await supabase
-          .from("memorials")
-          .select("*")
-          .eq("id", session.memorial_id)
-          .single();
-
-        if (memorialErr || !memorial) return;
-
-        setMemorialId(memorial.id);
-        setForm({
-          full_name: memorial.full_name,
-          date_of_death: memorial.date_of_death,
-        });
-        setExistingPhoto(memorial.photo_path || null);
-      }
+      setMemorialId(memorial.id);
+      setForm({
+        full_name: memorial.full_name || "",
+        date_of_death: memorial.date_of_death || "",
+        date_of_birth: memorial.date_of_birth || "",
+      });
+      setExistingPhoto(memorial.photo_path || null);
+      setLoading(false);
     }
 
-    loadSession();
+    loadMemorial();
   }, [code, router]);
 
-  // 🔹 Handle form submit
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      setRawImageSrc(reader.result as string);
+      setIsCropping(true);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleCropComplete = async (croppedAreaPixels: any) => {
+    if (!rawImageSrc) return;
+    setIsCropping(false);
+    
+    try {
+      const croppedImage = await getCroppedImg(rawImageSrc, croppedAreaPixels);
+      if (!croppedImage) throw new Error("Failed to crop image.");
+
+      const options = {
+        maxSizeMB: 1,
+        maxWidthOrHeight: 1200,
+        useWebWorker: true,
+      };
+      const compressedFile = await imageCompression(croppedImage, options);
+      
+      setCroppedFile(compressedFile);
+      setPreview(URL.createObjectURL(compressedFile));
+    } catch (e) {
+      console.error(e);
+      setErrorMessage("Image processing failed.");
+    }
+  };
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    setSuccessMessage(null);
     setErrorMessage(null);
-    
-    if (locked) {
-      setErrorMessage("This memorial has been submitted. Please contact an administrator for further changes.");
-      return;
-    }
-    setLoading(true);
+    setSuccessMessage(null);
+    setSaving(true);
 
     try {
-      let photo_path = existingPhoto; // keep old image by default
+      let photo_path = existingPhoto;
 
       // Upload new photo if provided
-      if (file) {
-        const filename = `${crypto.randomUUID()}-${file.name}`;
+      if (croppedFile) {
+        const filename = `${crypto.randomUUID()}-${croppedFile.name}`;
         const { error: uploadErr } = await supabase.storage
-          .from("memorial-photos")
-          .upload(filename, file, { contentType: file.type });
+          .from("memorial_photos")
+          .upload(filename, croppedFile, { contentType: croppedFile.type });
         if (uploadErr) throw uploadErr;
-        photo_path = `memorial-photos/${filename}`;
+        photo_path = `memorial_photos/${filename}`;
       }
 
       // Update memorial
-      const upsertPayload: { id?: string; full_name: string; date_of_death: string; photo_path: string | null } = {
-        full_name: form.full_name,
-        date_of_death: form.date_of_death,
-        photo_path: photo_path ?? null,
-      };
-      if (memorialId) upsertPayload.id = memorialId; // include id only if exists
-
-      const { data, error: dbErr } = await supabase
+      const { error: dbErr } = await supabase
         .from("memorials")
-        .upsert(upsertPayload)
-        .select("id")
-        .single();
+        .update({
+          full_name: form.full_name,
+          date_of_birth: form.date_of_birth,
+          date_of_death: form.date_of_death,
+          photo_path,
+        })
+        .eq("id", memorialId);
 
       if (dbErr) throw dbErr;
 
-      // Ensure the session links to this memorial
-      await supabase
-        .from("memorial_sessions")
-        .update({ memorial_id: data.id })
-        .eq("code", code);
-
-      setShowSuccessDialog(true);
-      setTimeout(() => {
-        router.push(`/create/success?id=${data.id}`);
-      }, 3000);
-    } catch (err: unknown) {
-      const errorObj = err as { message?: string; error_description?: string };
-      const message = errorObj?.message || errorObj?.error_description || "Unknown error";
-      setErrorMessage(`Error: ${message}`);
+      setSuccessMessage("Memorial updated successfully!");
+      if (photo_path) setExistingPhoto(photo_path);
+      setCroppedFile(null);
+      setPreview(null);
+      
+    } catch (err: any) {
+      setErrorMessage(`Error: ${err.message || "Unknown error"}`);
     } finally {
-      setLoading(false);
+      setSaving(false);
     }
   }
 
-  async function finalizeSubmit() {
-    // Double-check that session is not already locked
-    const { data: sessionCheck } = await supabase
-      .from("memorial_sessions")
-      .select("used")
-      .eq("code", code)
-      .single();
-    
-    if (sessionCheck?.used) {
-      setErrorMessage("This memorial has already been submitted and is locked.");
-      setLocked(true);
-      return;
-    }
-
-    // Always save latest changes (create or update) first
-    try {
-      let photo_path = existingPhoto;
-      if (file) {
-        const filename = `${crypto.randomUUID()}-${file.name}`;
-        const { error: uploadErr } = await supabase.storage
-          .from("memorial-photos")
-          .upload(filename, file, { contentType: file.type });
-        if (uploadErr) throw uploadErr;
-        photo_path = `memorial-photos/${filename}`;
-      }
-      const payload: { id?: string; full_name: string; date_of_death: string; photo_path: string | null } = {
-        full_name: form.full_name,
-        date_of_death: form.date_of_death,
-        photo_path: photo_path ?? null,
-      };
-      if (memorialId) payload.id = memorialId;
-      const { data, error: dbErr } = await supabase
-        .from("memorials")
-        .upsert(payload)
-        .select("id")
-        .single();
-      if (dbErr) throw dbErr;
-      if (!memorialId) {
-        await supabase
-          .from("memorial_sessions")
-          .update({ memorial_id: data.id })
-          .eq("code", code);
-        setMemorialId(data.id);
-      }
-    } catch (e: unknown) {
-      const errorObj = e as { message?: string };
-      setErrorMessage(errorObj.message || "Failed to save changes before final submit.");
-      return;
-    }
-
-    setShowConfirmDialog(true);
+  if (loading) {
+    return (
+      <div className="max-w-2xl mx-auto my-16 p-8 text-center text-slate-500">
+        Loading memorial details...
+      </div>
+    );
   }
 
-  async function confirmFinalize() {
-    setShowConfirmDialog(false);
-    // Mark memorial as approved/final and lock the session
-    const { error: memErr } = await supabase
-      .from("memorials")
-      .update({ status: "approved" })
-      .eq("id", memorialId);
-    if (memErr) {
-      setErrorMessage(memErr.message);
-      return;
-    }
-    await supabase
-      .from("memorial_sessions")
-      .update({ used: true })
-      .eq("code", code);
-    setLocked(true);
-    setSuccessMessage("Submitted. Further edits require administrator assistance.");
+  if (!memorialId && errorMessage) {
+    return (
+      <div className="max-w-md mx-auto my-16 p-6 bg-red-50 text-red-700 rounded-xl border border-red-100 text-center">
+        {errorMessage}
+      </div>
+    );
   }
 
-  // 🔹 Render
   return (
-    <div className="create-container">
-      <h1 className="create-title">Edit Memorial</h1>
-      <p className="create-subtitle">
-        Update your loved one&apos;s information and photo below.
+    <div className="max-w-2xl mx-auto my-8 p-6 md:p-10 bg-[#F4EFEA]/95 backdrop-blur-sm rounded-2xl shadow-xl border border-[#E8E2D9]">
+      <h1 className="font-serif text-3xl md:text-4xl text-slate-800 text-center mb-2">Edit Memorial</h1>
+      <p className="text-center text-slate-500 mb-8 max-w-lg mx-auto">
+        Update your loved one&apos;s information below. Changes will be visible immediately.
       </p>
 
-      <form onSubmit={handleSubmit} className="memorial-form">
-        {/* Name */}
-        <div className="form-group">
-          <label>Full Name</label>
+      {successMessage && (
+        <div className="bg-emerald-50 text-emerald-800 p-4 rounded-xl border border-emerald-100 mb-6 text-sm text-center font-medium">
+          {successMessage}
+        </div>
+      )}
+
+      {errorMessage && (
+        <div className="bg-red-50 text-red-700 p-4 rounded-xl border border-red-100 mb-6 text-sm text-center font-medium">
+          {errorMessage}
+        </div>
+      )}
+
+      <form onSubmit={handleSubmit} className="flex flex-col gap-6">
+        <div>
+          <label className="block text-sm font-semibold text-slate-700 mb-1">Full Name</label>
           <input
             type="text"
+            className="w-full px-4 py-3 rounded-xl border border-[#DED8D0] focus:outline-none focus:ring-2 focus:ring-slate-800 bg-[#FCFBFA] text-slate-800 transition-all"
             value={form.full_name}
             onChange={(e) => setForm({ ...form, full_name: e.target.value })}
             required
           />
         </div>
 
-        {/* Date */}
-        <div className="form-group">
-          <label>Date of Passing</label>
-          <input
-            type="date"
-            value={form.date_of_death}
-            onChange={(e) =>
-              setForm({ ...form, date_of_death: e.target.value })
-            }
-            required
-          />
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div>
+            <label className="block text-sm font-semibold text-slate-700 mb-1">Date of Birth</label>
+            <input
+              type="date"
+              className="w-full px-4 py-3 rounded-xl border border-[#DED8D0] focus:outline-none focus:ring-2 focus:ring-slate-800 bg-[#FCFBFA] text-slate-800 transition-all"
+              value={form.date_of_birth}
+              onChange={(e) => setForm({ ...form, date_of_birth: e.target.value })}
+              required
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-semibold text-slate-700 mb-1">Date of Passing</label>
+            <input
+              type="date"
+              className="w-full px-4 py-3 rounded-xl border border-[#DED8D0] focus:outline-none focus:ring-2 focus:ring-slate-800 bg-[#FCFBFA] text-slate-800 transition-all"
+              value={form.date_of_death}
+              onChange={(e) => setForm({ ...form, date_of_death: e.target.value })}
+              required
+            />
+          </div>
         </div>
 
-        {/* Photo */}
-        <div className="form-group">
-          <label>Memorial Photo</label>
+        <div>
+          <label className="block text-sm font-semibold text-slate-700 mb-1">Memorial Photo</label>
+          <p className="text-xs text-slate-500 mb-3">Upload a new photo to replace the current one. You can crop it after selecting.</p>
+          
           <input
             type="file"
             accept="image/*"
-            onChange={(e) => {
-              const f = e.target.files?.[0] ?? null;
-              setFile(f);
-              if (f) {
-                setImageError(null);
-                const reader = new FileReader();
-                reader.onload = (ev) => {
-                  const dataUrl = ev.target?.result as string;
-                  setPreview(dataUrl);
-                  const img = document.createElement('img');
-                  img.onload = () => {
-                    const w = (img as HTMLImageElement).naturalWidth;
-                    const h = (img as HTMLImageElement).naturalHeight;
-                    const minW = 300;
-                    const minH = 400;
-                    const maxW = 3000;
-                    const maxH = 3000;
-                    if (w < minW || h < minH) {
-                      setImageError(`Image too small. Minimum ${minW}x${minH}px.`);
-                    } else if (w > maxW || h > maxH) {
-                      setImageError(`Image too large. Maximum ${maxW}x${maxH}px.`);
-                    } else if (f.size > 5 * 1024 * 1024) {
-                      setImageError("Image file too big. Max 5 MB.");
-                    } else {
-                      setImageError(null);
-                    }
-                  };
-                  img.src = dataUrl;
-                };
-                reader.readAsDataURL(f);
-              }
-            }}
+            id="photo-upload"
+            className="hidden"
+            onChange={handleFileChange}
           />
-          {imageError && (
-            <div className="error-message">{imageError}</div>
-          )}
-
-          {/* Existing image */}
-          {existingPhoto && !preview && (
-            <img
-              src={`${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/${existingPhoto}`}
-              alt="Existing memorial photo"
-              style={{
-                maxWidth: "100%",
-                maxHeight: "250px",
-                objectFit: "contain",
-                borderRadius: "8px",
-                marginTop: "1rem",
-              }}
-            />
-          )}
-
-          {/* New preview */}
-          {preview && (
-            <img
-              src={preview}
-              alt="Preview"
-              style={{
-                maxWidth: "100%",
-                maxHeight: "250px",
-                objectFit: "contain",
-                borderRadius: "8px",
-                marginTop: "1rem",
-              }}
-            />
-          )}
+          
+          <div className="flex justify-center">
+            <label htmlFor="photo-upload" className="relative w-full sm:w-64 aspect-[3/4] mx-auto rounded-xl overflow-hidden shadow-md group cursor-pointer bg-[#EFECE8] border-2 border-dashed border-[#C8C0B5] hover:bg-[#E4DFD7] transition-colors">
+              {preview ? (
+                <Image src={preview} alt="New Preview" fill className="object-cover" />
+              ) : existingPhoto ? (
+                <Image src={`${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/${existingPhoto}`} alt="Existing photo" fill className="object-cover" />
+              ) : (
+                <div className="flex flex-col items-center justify-center w-full h-full text-slate-400">
+                  <span className="text-2xl mb-2">📸</span>
+                  <span>Click to select</span>
+                </div>
+              )}
+              <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity text-white font-medium">
+                Change Photo
+              </div>
+            </label>
+          </div>
         </div>
 
-        {/* Submit */}
         <button
           type="submit"
-          className="submit-button"
-          disabled={loading}
-          style={{ marginTop: "1rem" }}
+          className="mt-4 w-full py-4 rounded-xl text-white font-semibold text-lg bg-[#990000] hover:bg-[#7a0000] transition-all shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
+          disabled={saving}
         >
-          {loading ? "Saving..." : "Save Memorial"}
-        </button>
-
-        <button
-          type="button"
-          className="submit-button"
-          style={{ marginTop: "0.5rem", backgroundColor: locked ? "#7f8c8d" : undefined }}
-          onClick={finalizeSubmit}
-          disabled={locked}
-        >
-          {locked ? "Submitted (Locked)" : "Submit Final (Lock Edits)"}
+          {saving ? "Saving Changes..." : "Save Changes"}
         </button>
       </form>
 
-      {successMessage && (
-        <div className="success-message" style={{ 
-          backgroundColor: "#d4edda", 
-          border: "1px solid #c3e6cb", 
-          color: "#155724", 
-          padding: "1rem", 
-          borderRadius: "8px", 
-          marginTop: "1rem",
-          textAlign: "center"
-        }}>
-          {successMessage}
-        </div>
-      )}
-
-      {errorMessage && (
-        <div className="error-message" style={{ 
-          backgroundColor: "#f8d7da", 
-          border: "1px solid #f5c6cb", 
-          color: "#721c24", 
-          padding: "1rem", 
-          borderRadius: "8px", 
-          marginTop: "1rem",
-          textAlign: "center"
-        }}>
-          {errorMessage}
-        </div>
-      )}
-
-      {showConfirmDialog && (
-        <div className="confirmation-dialog" style={{
-          position: "fixed",
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          backgroundColor: "rgba(0, 0, 0, 0.5)",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          zIndex: 1000
-        }}>
-          <div style={{
-            backgroundColor: "white",
-            padding: "2rem",
-            borderRadius: "12px",
-            maxWidth: "400px",
-            width: "90%",
-            textAlign: "center",
-            boxShadow: "0 10px 25px rgba(0, 0, 0, 0.2)"
-          }}>
-            <h3 style={{ marginTop: 0, color: "#2c3e50" }}>Confirm Final Submission</h3>
-            <p style={{ color: "#666", marginBottom: "2rem" }}>
-              After submitting, you cannot edit without administrator help. Continue?
-            </p>
-            <div style={{ display: "flex", gap: "1rem", justifyContent: "center" }}>
-              <button
-                onClick={() => setShowConfirmDialog(false)}
-                style={{
-                  padding: "0.75rem 1.5rem",
-                  border: "1px solid #ddd",
-                  borderRadius: "6px",
-                  backgroundColor: "white",
-                  color: "#666",
-                  cursor: "pointer"
-                }}
-              >
-                Cancel
-              </button>
-              <button
-                onClick={confirmFinalize}
-                style={{
-                  padding: "0.75rem 1.5rem",
-                  border: "none",
-                  borderRadius: "6px",
-                  backgroundColor: "#27ae60",
-                  color: "white",
-                  cursor: "pointer"
-                }}
-              >
-                Submit Final
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {showSuccessDialog && (
-        <div className="success-dialog" style={{
-          position: "fixed",
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          backgroundColor: "rgba(0, 0, 0, 0.5)",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          zIndex: 1000
-        }}>
-          <div style={{
-            backgroundColor: "white",
-            padding: "2rem",
-            borderRadius: "12px",
-            maxWidth: "400px",
-            width: "90%",
-            textAlign: "center",
-            boxShadow: "0 10px 25px rgba(0, 0, 0, 0.2)"
-          }}>
-            <div style={{ fontSize: "3rem", marginBottom: "1rem" }}>✅</div>
-            <h3 style={{ marginTop: 0, color: "#2c3e50" }}>Memorial Saved Successfully!</h3>
-            <p style={{ color: "#666", marginBottom: "2rem" }}>
-              Your memorial has been saved successfully! You will be redirected to the success page shortly.
-            </p>
-            <button
-              onClick={() => setShowSuccessDialog(false)}
-              style={{
-                padding: "0.75rem 2rem",
-                border: "none",
-                borderRadius: "6px",
-                backgroundColor: "#27ae60",
-                color: "white",
-                cursor: "pointer",
-                fontSize: "1rem"
-              }}
-            >
-              Continue
-            </button>
-          </div>
-        </div>
+      {isCropping && rawImageSrc && (
+        <ImageCropper 
+          imageSrc={rawImageSrc} 
+          aspect={3/4}
+          onCropComplete={handleCropComplete} 
+          onCancel={() => setIsCropping(false)} 
+        />
       )}
     </div>
   );
