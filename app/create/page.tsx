@@ -45,7 +45,7 @@ export default function CreatePage() {
   };
 
   // 2. Handle Cropping Complete
-  const handleCropComplete = async (croppedAreaPixels: unknown) => {
+  const handleCropComplete = async (croppedAreaPixels: { x: number; y: number; width: number; height: number }) => {
     if (!rawImageSrc) return;
     setIsCropping(false);
     

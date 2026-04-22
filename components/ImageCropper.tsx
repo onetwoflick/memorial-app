@@ -5,9 +5,11 @@ import Cropper from 'react-easy-crop';
 
 type Point = { x: number; y: number };
 
+export type Area = { x: number; y: number; width: number; height: number };
+
 interface ImageCropperProps {
   imageSrc: string;
-  onCropComplete: (croppedAreaPixels: unknown) => void;
+  onCropComplete: (croppedAreaPixels: Area) => void;
   onCancel: () => void;
   aspect?: number;
 }
@@ -15,13 +17,13 @@ interface ImageCropperProps {
 export default function ImageCropper({ imageSrc, onCropComplete, onCancel, aspect = 3 / 4 }: ImageCropperProps) {
   const [crop, setCrop] = useState<Point>({ x: 0, y: 0 });
   const [zoom, setZoom] = useState(1);
-  const [croppedAreaPixels, setCroppedAreaPixels] = useState<unknown>(null);
+  const [croppedAreaPixels, setCroppedAreaPixels] = useState<Area | null>(null);
 
   const onCropChange = (crop: Point) => {
     setCrop(crop);
   };
 
-  const onCropCompleteInternal = useCallback((croppedArea: unknown, croppedAreaPixels: unknown) => {
+  const onCropCompleteInternal = useCallback((croppedArea: Area, croppedAreaPixels: Area) => {
     setCroppedAreaPixels(croppedAreaPixels);
   }, []);
 
@@ -54,8 +56,11 @@ export default function ImageCropper({ imageSrc, onCropComplete, onCancel, aspec
             Cancel
           </button>
           <button
-            onClick={() => onCropComplete(croppedAreaPixels)}
-            className="px-6 py-3 rounded-full text-white bg-slate-800 hover:bg-slate-700 transition-colors font-medium shadow-md"
+            onClick={() => {
+              if (croppedAreaPixels) onCropComplete(croppedAreaPixels);
+            }}
+            disabled={!croppedAreaPixels}
+            className="px-6 py-3 rounded-full text-white bg-slate-800 hover:bg-slate-700 transition-colors font-medium shadow-md disabled:opacity-50"
           >
             Apply Crop
           </button>
