@@ -130,7 +130,7 @@ export default function HomePage() {
       {hydrated && !loading && todaysMemorials.length > 0 && (
         <div className="max-w-7xl mx-auto px-4 sm:px-6 w-full mb-6">
           <h3 className="font-serif text-2xl text-[#990000] border-b border-[#C8C0B5]/50 pb-2">
-            Today's Anniversaries & Birthdays
+            Today&apos;s Anniversaries & Birthdays
           </h3>
         </div>
       )}

@@ -76,7 +76,7 @@ export default function EditPage() {
     reader.readAsDataURL(file);
   };
 
-  const handleCropComplete = async (croppedAreaPixels: any) => {
+  const handleCropComplete = async (croppedAreaPixels: unknown) => {
     if (!rawImageSrc) return;
     setIsCropping(false);
     
@@ -93,9 +93,9 @@ export default function EditPage() {
       
       setCroppedFile(compressedFile);
       setPreview(URL.createObjectURL(compressedFile));
-    } catch (e) {
-      console.error(e);
-      setErrorMessage("Image processing failed.");
+    } catch (err: unknown) {
+      console.error(err);
+      setErrorMessage(err instanceof Error ? err.message : "Image processing failed.");
     }
   };
 

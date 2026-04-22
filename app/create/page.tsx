@@ -45,7 +45,7 @@ export default function CreatePage() {
   };
 
   // 2. Handle Cropping Complete
-  const handleCropComplete = async (croppedAreaPixels: any) => {
+  const handleCropComplete = async (croppedAreaPixels: unknown) => {
     if (!rawImageSrc) return;
     setIsCropping(false);
     
@@ -136,9 +136,9 @@ export default function CreatePage() {
 
       setClientSecret(clientSecret);
 
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error(err);
-      setErrorMessage(err.message || "Failed to save memorial details.");
+      setErrorMessage(err instanceof Error ? err.message : "Failed to save memorial details.");
     } finally {
       setLoading(false);
     }
@@ -162,7 +162,8 @@ export default function CreatePage() {
       if (error) throw error;
       
       setIsSuccess(true);
-    } catch (err: any) {
+    } catch (err: unknown) {
+      console.error(err);
       setErrorMessage("Payment succeeded but failed to update status. Please contact support.");
     } finally {
       setLoading(false);

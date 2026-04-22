@@ -7,7 +7,7 @@ type Point = { x: number; y: number };
 
 interface ImageCropperProps {
   imageSrc: string;
-  onCropComplete: (croppedAreaPixels: any) => void;
+  onCropComplete: (croppedAreaPixels: unknown) => void;
   onCancel: () => void;
   aspect?: number;
 }
@@ -15,13 +15,13 @@ interface ImageCropperProps {
 export default function ImageCropper({ imageSrc, onCropComplete, onCancel, aspect = 3 / 4 }: ImageCropperProps) {
   const [crop, setCrop] = useState<Point>({ x: 0, y: 0 });
   const [zoom, setZoom] = useState(1);
-  const [croppedAreaPixels, setCroppedAreaPixels] = useState(null);
+  const [croppedAreaPixels, setCroppedAreaPixels] = useState<unknown>(null);
 
   const onCropChange = (crop: Point) => {
     setCrop(crop);
   };
 
-  const onCropCompleteInternal = useCallback((croppedArea: any, croppedAreaPixels: any) => {
+  const onCropCompleteInternal = useCallback((croppedArea: unknown, croppedAreaPixels: unknown) => {
     setCroppedAreaPixels(croppedAreaPixels);
   }, []);
 
