@@ -136,8 +136,8 @@ export default function EditPage() {
       setCroppedFile(null);
       setPreview(null);
       
-    } catch (err: any) {
-      setErrorMessage(`Error: ${err.message || "Unknown error"}`);
+    } catch (err: unknown) {
+      setErrorMessage(`Error: ${err instanceof Error ? err.message : "Unknown error"}`);
     } finally {
       setSaving(false);
     }
