@@ -48,7 +48,7 @@ export default function RootLayout({
                 Return to Parish Home
               </a>
               <span className="hidden md:inline text-blue-400">•</span>
-              <a href="https://stjohnnewman.org/mass-times" target="_blank" rel="noopener noreferrer" className="hover:text-[#D4AF37] transition-colors">
+              <a href="https://stjohnnewman.org/mass-times-1" target="_blank" rel="noopener noreferrer" className="hover:text-[#D4AF37] transition-colors">
                 Mass Times
               </a>
               <span className="hidden md:inline text-blue-400">•</span>
